@@ -1,18 +1,17 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Page</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
   <div class="container mt-3">
     <h3 class="mt-5 mb-3">신규 등록 상품</h3>
-    <form class="row row-cols-lg-auto g-3 align-items-center mb-4">      
+    <form id="searchForm" class="row row-cols-lg-auto g-3 align-items-center mb-4">      
       <div class="col-12">
-        <label class="visually-hidden" for="inlineFormSelectPref">Preference</label>
-        <select class="form-select" id="inlineFormSelectPref" name="category_data_table">
+        <select class="form-select" id="categorySelect" name="category_data_table">
           <option value="">카테고리 선택</option>
           <option value="상의">상의</option>
           <option value="하의">하의</option>
@@ -21,7 +20,7 @@
         </select>
       </div>
       <div class="col-6">
-        <input type="text" class="form-control" placeholder="제품명을 입력해주세요">
+        <input type="text" class="form-control" id="productInput" placeholder="제품명을 입력해주세요" />
       </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-primary">조회</button>
@@ -38,43 +37,110 @@
             <th>가격</th>
           </tr>
         </thead>
-        <tbody id="product_data_Table">
-          <!-- 제품 데이터가 자동으로 삽입됩니다 -->
-        </tbody>
+        <tbody id="product_data_Table"></tbody>
       </table>
     </div>
 
     <!-- 페이지네이션 -->
     <nav>
-      <ul class="pagination justify-content-center">
-        <li class="page-item disabled"><a class="page-link" href="#">이전</a></li>
-        <li class="page-item active"><a class="page-link" href="#">1</a></li>
-        <li class="page-item"><a class="page-link" href="#">2</a></li>
-        <li class="page-item"><a class="page-link" href="#">3</a></li>
-        <li class="page-item"><a class="page-link" href="#">다음</a></li>
-      </ul>
+      <ul class="pagination justify-content-center" id="pagination"></ul>
     </nav>
   </div>
 
   <script>
-    // 제품 데이터
+    // 전체 데이터
     const product_data = [
       { category: "상의", brand: 'Supreme', product: '슈프림 박스로고 후드티', price: '390,000' },
       { category: "하의", brand: 'DIESEL', product: '디젤 트랙 팬츠', price: '188,000' },
       { category: "신발", brand: 'Nike', product: '에어포스 1', price: '137,000' },
       { category: "패션잡화", brand: 'Music&Goods', product: '빵빵이 키링', price: '29,000' },
+      { category: "신발", brand: 'Adidas', product: '슈퍼스타', price: '110,000' },
+      { category: "상의", brand: 'Uniqlo', product: 'U 크루넥 티셔츠', price: '19,000' }
     ];
 
-    // 제품 테이블에 데이터 추가
-    const product_data_Table = document.getElementById('product_data_Table');
+    let filteredData = [...product_data];
+    const itemsPerPage = 2;
+    let currentPage = 1;
 
-    product_data.forEach((item) => {
-      const row = product_data_Table.insertRow();
-      row.insertCell(0).innerText = item.category;
-      row.insertCell(1).innerText = item.brand;
-      row.insertCell(2).innerText = item.product;
-      row.insertCell(3).innerText = item.price;
+    const tableBody = document.getElementById('product_data_Table');
+    const pagination = document.getElementById('pagination');
+    const form = document.getElementById('searchForm');
+    const categorySelect = document.getElementById('categorySelect');
+    const productInput = document.getElementById('productInput');
+
+    // 테이블 렌더링
+    function displayTableData(page, data) {
+      tableBody.innerHTML = '';
+      const start = (page - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      const currentItems = data.slice(start, end);
+
+      currentItems.forEach(item => {
+        const row = tableBody.insertRow();
+        row.insertCell(0).innerText = item.category;
+        row.insertCell(1).innerText = item.brand;
+        row.insertCell(2).innerText = item.product;
+        row.insertCell(3).innerText = item.price;
+      });
+    }
+
+    // 페이지네이션 렌더링
+    function setupPagination(data) {
+      pagination.innerHTML = '';
+      const pageCount = Math.ceil(data.length / itemsPerPage);
+
+      const createPageItem = (label, pageNum, disabled = false, active = false) => {
+        const li = document.createElement('li');
+        li.className = `page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}`;
+        const a = document.createElement('a');
+        a.className = 'page-link';
+        a.href = '#';
+        a.innerText = label;
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!disabled && currentPage !== pageNum) {
+            currentPage = pageNum;
+            displayTableData(currentPage, filteredData);
+            setupPagination(filteredData);
+          }
+        });
+        li.appendChild(a);
+        return li;
+      };
+
+      pagination.appendChild(createPageItem('이전', currentPage - 1, currentPage === 1));
+
+      for (let i = 1; i <= pageCount; i++) {
+        pagination.appendChild(createPageItem(i, i, false, currentPage === i));
+      }
+
+      pagination.appendChild(createPageItem('다음', currentPage + 1, currentPage === pageCount));
+    }
+
+    // 검색 필터링
+    function filterData() {
+      const category = categorySelect.value.trim();
+      const productName = productInput.value.trim().toLowerCase();
+
+      return product_data.filter(item => {
+        const matchesCategory = category === '' || item.category === category;
+        const matchesProduct = productName === '' || item.product.toLowerCase().includes(productName);
+        return matchesCategory && matchesProduct;
+      });
+    }
+
+    // 폼 제출 이벤트 (조회 버튼 클릭)
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      currentPage = 1;
+      filteredData = filterData();
+      displayTableData(currentPage, filteredData);
+      setupPagination(filteredData);
     });
+
+    // 초기 로딩
+    displayTableData(currentPage, filteredData);
+    setupPagination(filteredData);
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
